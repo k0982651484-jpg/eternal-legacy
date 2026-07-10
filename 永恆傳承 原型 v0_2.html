@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0e14">
+<title>永恆傳承 — 原型 v0.2</title>
+<style>
+:root{
+  --bg:#0b0e14; --panel:#12182a; --panel2:#0e1420;
+  --gold:#c9a961; --gold-dim:#8a6d3b; --ink:#d8d3c4; --ink-dim:#8b8574;
+  --hp:#b03a3a; --mp:#3a6ab0; --rage:#c46a2a; --xp:#7d5fb2; --en:#3f9e6e;
+  --dmg:#e8b4b4; --heal:#9fd6a9; --loot:#e9d18a; --sys:#7fa8d8; --warn:#e0a458;
+  --line:#2a3350;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"Microsoft JhengHei","PingFang TC","Noto Sans CJK TC","Heiti TC",sans-serif;
+  font-size:15px; line-height:1.5; overflow:hidden;
+  display:flex; flex-direction:column; height:100dvh;
+  max-width:560px; margin:0 auto;
+  border-left:1px solid var(--line); border-right:1px solid var(--line);
+}
+h1,h2,h3,.serif{font-family:"Noto Serif TC","PMingLiU","Songti TC",serif}
+button{
+  font-family:inherit; color:var(--ink); background:linear-gradient(180deg,#1b2340,#121830);
+  border:1px solid var(--gold-dim); border-radius:4px;
+  padding:9px 12px; font-size:14px; min-height:42px; cursor:pointer;
+}
+button:active{background:#0d1226}
+button:disabled{opacity:.35; cursor:default}
+button.gold{border-color:var(--gold); color:var(--gold)}
+button.danger{border-color:#8a3b3b; color:#d99}
+select,input,textarea{
+  font-family:inherit; background:var(--panel2); color:var(--ink);
+  border:1px solid var(--line); border-radius:4px; padding:8px; font-size:14px;
+}
+.hidden{display:none!important}
+
+/* ===== 頂部狀態 ===== */
+#hud{
+  background:linear-gradient(180deg,#151d33,#0f1526);
+  border-bottom:1px solid var(--gold-dim);
+  padding:8px 10px 6px; flex:none;
+}
+#hudName{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px}
+#hudName .nm{color:var(--gold); font-weight:bold; letter-spacing:1px}
+#hudName .zone{font-size:12px; color:var(--ink-dim)}
+.bar{position:relative; height:14px; background:#090c14; border:1px solid var(--line); border-radius:3px; margin:3px 0; overflow:hidden}
+.bar>i{position:absolute; inset:0; width:50%; transition:width .25s}
+.bar>span{position:absolute; inset:0; font-size:10px; line-height:12px; text-align:center; color:#fff; text-shadow:0 1px 2px #000; letter-spacing:1px}
+.bar.hp>i{background:linear-gradient(180deg,#d05050,var(--hp))}
+.bar.mp>i{background:linear-gradient(180deg,#5a8ad0,var(--mp))}
+.bar.rage>i{background:linear-gradient(180deg,#e08a4a,var(--rage))}
+.bar.xp>i{background:linear-gradient(180deg,#9a7dd2,var(--xp))}
+.bar.en>i{background:linear-gradient(180deg,#5fbe8e,var(--en))}
+.bar.ehp{height:18px}
+.bar.ehp>i{background:linear-gradient(180deg,#c05858,#8a2f2f)}
+.bar.ehp>span{font-size:11px; line-height:16px}
+#hudBars2{display:flex; gap:6px}
+#hudBars2>div{flex:1}
+.microlabel{font-size:10px; color:var(--ink-dim); letter-spacing:1px}
+
+/* ===== 主體 ===== */
+#main{flex:1; overflow:hidden; position:relative; display:flex; flex-direction:column}
+.page{position:absolute; inset:0; overflow-y:auto; padding:10px; display:none; -webkit-overflow-scrolling:touch}
+.page.on{display:block}
+#pgCombat{display:none; flex-direction:column; padding:0}
+#pgCombat.on{display:flex}
+
+/* 敵人面板 */
+#enemyBox{flex:none; padding:8px 10px; background:var(--panel2); border-bottom:1px solid var(--line)}
+#enemyRow{display:flex; justify-content:space-between; align-items:baseline}
+#enemyName{color:#e0b0b0; font-weight:bold}
+#enemyName .rank{color:var(--gold); font-size:12px}
+#castBar{height:6px; background:#090c14; border-radius:3px; margin-top:4px; overflow:hidden}
+#castBar>i{display:block; height:100%; width:0; background:var(--warn)}
+#castLabel{font-size:11px; color:var(--warn); height:16px}
+
+/* 戰鬥文字流(主視覺) */
+#log{
+  flex:1; overflow-y:auto; padding:10px 12px;
+  background:
+    radial-gradient(ellipse at 50% -20%, #1a2340 0%, transparent 60%),
+    var(--bg);
+  font-size:13.5px;
+}
+#log p{margin:2px 0; color:var(--ink-dim); animation:fadein .3s}
+#log p b{font-weight:normal}
+@keyframes fadein{from{opacity:0; transform:translateY(3px)}to{opacity:1}}
+.l-dmg{color:var(--dmg)} .l-take{color:#e29a9a} .l-heal{color:var(--heal)}
+.l-loot{color:var(--loot)} .l-sys{color:var(--sys)} .l-warn{color:var(--warn)}
+.l-lvl{color:var(--gold); font-weight:bold}
+.l-crit{color:#ffd27d}
+
+/* 技能列 */
+#skillBar{
+  flex:none; display:flex; gap:6px; padding:8px; overflow-x:auto;
+  background:var(--panel2); border-top:1px solid var(--line);
+}
+#skillBar button{flex:none; min-width:74px; font-size:13px; padding:6px 8px; position:relative; overflow:hidden}
+#skillBar button .cd{position:absolute; inset:0; background:rgba(0,0,0,.65); transform-origin:bottom; pointer-events:none}
+#skillBar button .cost{display:block; font-size:10px; color:var(--ink-dim)}
+#combatCtl{flex:none; display:flex; gap:6px; padding:0 8px 8px; background:var(--panel2)}
+#combatCtl button{flex:1; font-size:13px}
+#combatCtl .modeOn{border-color:var(--en); color:#9fd6a9}
+
+/* 通用卡片 */
+.card{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:10px 12px; margin-bottom:10px}
+.card h3{color:var(--gold); font-size:15px; margin-bottom:6px; letter-spacing:1px; border-bottom:1px solid var(--line); padding-bottom:4px}
+.kv{display:flex; justify-content:space-between; padding:2px 0; font-size:14px}
+.kv span:first-child{color:var(--ink-dim)}
+.row{display:flex; gap:8px; align-items:center; padding:6px 0; border-bottom:1px dashed #202a45}
+.row:last-child{border-bottom:none}
+.row .grow{flex:1}
+.row small{color:var(--ink-dim); display:block; font-size:12px}
+.tag{font-size:11px; border:1px solid var(--gold-dim); color:var(--gold); border-radius:3px; padding:0 4px}
+.q-white{color:#cfcfcf}.q-green{color:#7ec97e}.q-blue{color:#6da8e8}
+
+/* ===== 底部導航 ===== */
+#nav{
+  flex:none; display:flex; background:linear-gradient(180deg,#151d33,#0d1220);
+  border-top:1px solid var(--gold-dim);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+#nav button{
+  flex:1; background:none; border:none; border-radius:0; color:var(--ink-dim);
+  font-size:12px; padding:9px 0 10px; min-height:48px; letter-spacing:2px;
+}
+#nav button.on{color:var(--gold); text-shadow:0 0 8px rgba(201,169,97,.4)}
+#nav button .dot{color:var(--warn)}
+
+/* ===== 開場/彈窗 ===== */
+#overlay{
+  position:fixed; inset:0; background:rgba(4,6,12,.92); z-index:50;
+  display:flex; align-items:center; justify-content:center; padding:16px;
+}
+#overlay .box{
+  width:100%; max-width:420px; max-height:88dvh; overflow-y:auto;
+  background:var(--panel); border:1px solid var(--gold); border-radius:8px; padding:18px;
+  box-shadow:0 0 40px rgba(201,169,97,.15);
+}
+#overlay h1{color:var(--gold); text-align:center; font-size:24px; letter-spacing:6px; margin-bottom:2px}
+#overlay .sub{text-align:center; color:var(--ink-dim); font-size:12px; letter-spacing:2px; margin-bottom:14px}
+.pickGrid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0}
+.pick{border:1px solid var(--line); border-radius:6px; padding:10px; cursor:pointer; background:var(--panel2)}
+.pick.on{border-color:var(--gold); box-shadow:0 0 10px rgba(201,169,97,.25)}
+.pick b{color:var(--gold); display:block; margin-bottom:2px}
+.pick small{color:var(--ink-dim); font-size:11px; line-height:1.4; display:block}
+.pick.dis{opacity:.35; pointer-events:none}
+textarea{width:100%; height:110px; font-size:11px}
+@media (min-width:900px){ body{max-width:640px; font-size:16px} }
+</style>
+</head>
+<body>
+
+<!-- 頂部 HUD -->
+<div id="hud">
+  <div id="hudName"><span class="nm" id="hName">—</span><span class="zone" id="hZone">—</span></div>
+  <div class="bar hp"><i id="bHp"></i><span id="tHp"></span></div>
+  <div class="bar" id="bResWrap"><i id="bRes"></i><span id="tRes"></span></div>
+  <div id="hudBars2">
+    <div><div class="microlabel">經驗</div><div class="bar xp"><i id="bXp"></i><span id="tXp"></span></div></div>
+    <div><div class="microlabel">精力</div><div class="bar en"><i id="bEn"></i><span id="tEn"></span></div></div>
+  </div>
+</div>
+
+<!-- 主體 -->
+<div id="main">
+
+  <!-- 戰鬥頁 -->
+  <div class="page on" id="pgCombat">
+    <div id="enemyBox">
+      <div id="enemyRow">
+        <span id="enemyName">尚未遭遇敵人</span>
+        <select id="huntSel"></select>
+      </div>
+      <div class="bar ehp"><i id="bEhp"></i><span id="tEhp"></span></div>
+      <div id="castLabel"></div>
+      <div id="castBar"><i id="bCast"></i></div>
+    </div>
+    <div id="log"></div>
+    <div id="skillBar"></div>
+    <div id="combatCtl">
+      <button id="btnMode">⚔ 手動模式</button>
+      <button id="btnFight" class="gold">尋找敵人</button>
+      <button id="btnGather">🌿 採集</button>
+      <button id="btnTown">回城</button>
+    </div>
+  </div>
+
+  <!-- 角色頁 -->
+  <div class="page" id="pgChar"></div>
+  <!-- 背包頁 -->
+  <div class="page" id="pgBag"></div>
+  <!-- 任務頁 -->
+  <div class="page" id="pgQuest"></div>
+  <!-- 城鎮頁 -->
+  <div class="page" id="pgTown"></div>
+  <!-- 系統頁 -->
+  <div class="page" id="pgSys"></div>
+</div>
+
+<!-- 底部導航 -->
+<div id="nav">
+  <button data-pg="pgCombat" class="on">戰鬥</button>
+  <button data-pg="pgChar">角色</button>
+  <button data-pg="pgBag">背包</button>
+  <button data-pg="pgQuest">任務<span class="dot" id="qDot"></span></button>
+  <button data-pg="pgTown">城鎮</button>
+  <button data-pg="pgSys">系統</button>
+</div>
+
+<!-- 開場:建立角色 / 掛機報告 -->
+<div id="overlay">
+  <div class="box" id="ovBox">
+    <h1>永恆傳承</h1>
+    <div class="sub">ETERNAL LEGACY</div>
+    <div class="card"><h3>⚠ 遊戲引擎未啟動</h3>
+      <small style="color:var(--ink)">看到這個畫面,代表目前的開啟方式不執行 JavaScript(最常見:iPhone「檔案」App 的快速預覽)。</small><br><br>
+      <small style="color:var(--ink)"><b style="color:var(--gold)">iPhone 正確開法:</b><br>
+      1. App Store 安裝免費的「Documents」(Readdle 出品)<br>
+      2. 把本 HTML 檔存入 Documents<br>
+      3. 在 Documents 內點開檔案即可遊玩,存檔也會保留<br><br>
+      <b style="color:var(--gold)">Android:</b>用 Chrome 開啟即可<br>
+      <b style="color:var(--gold)">電腦:</b>雙擊檔案用瀏覽器開啟</small>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   永恆傳承 Eternal Legacy — 原型 v0.2
+   sim 規則單一事實來源:GDB V0.8 精修定稿
+   離線單檔.手機/電腦通用.localStorage + JSON 匯出匯入
+   ============================================================ */
+'use strict';
+
+/* ===== 公式(formulas — GDB 附錄 A / 7.1 / 4.3 / 11.2 / 12.3) ===== */
+const F = {
+  xpNeed: L => 40*L*L + 360*L,
+  mobHp:  L => 63*L + 120,
+  mobAtk: L => 6 + 2*L,             // 每 2 秒一擊
+  mobXp:  L => 45 + 5*L,
+  pHp:    L => 30*L + 90,
+  wDpsWhite: L => 2.1*L + 4,
+  statDps:  L => 1.8*L + 4,          // 屬性/技能係數的自動攻擊貢獻
+  armorDR: (armor, atkL) => Math.min(0.75, armor/(armor + 85*atkL + 400)),
+  repairCost: (lv, q, lost) => Math.ceil(lv * q * lost * 2), // 銅(=0.02銀)
+};
+const RANK = { normal:{hp:1,atk:1,xp:1,t:''}, elite:{hp:3,atk:1.5,xp:2,t:'★菁英'}, rare:{hp:4,atk:1.5,xp:2,t:'★稀有'} };
+const LVCAP = 10;
+</script>
+<script>
+/* ===== 遊戲資料(對齊 GDB Vol 2/5/7/9) ===== */
+const RACES = {
+  norein:      { name:'諾嵐人',   fac:'晨曦聯邦', zone:'dawnvale',
+    classes:['warrior','paladin','rogue','priest','mage','warlock'],
+    desc:'薪火相傳:委託售價+10%' },
+  stonewrought:{ name:'岩鑄矮人', fac:'晨曦聯邦', zone:'dawnvale',
+    classes:['warrior','paladin','ranger','rogue','priest'],
+    desc:'石膚:受到傷害恆常-5%' },
+  starborn:    { name:'星輝精靈', fac:'晨曦聯邦', zone:'dawnvale',
+    classes:['warrior','ranger','rogue','priest','druid'],
+    desc:'靈巧:4% 機率完全閃避攻擊' },
+  cogling:     { name:'靈工族',   fac:'晨曦聯邦', zone:'dawnvale',
+    classes:['warrior','rogue','mage','warlock'],
+    desc:'奇思妙想:資源上限+15%' },
+  warfang:     { name:'蠻鋒族',   fac:'暮痕部盟', zone:'cragclaw',
+    classes:['warrior','ranger','rogue','shaman','warlock'],
+    desc:'血怒:每場戰鬥開場攻擊+10% 15秒' },
+  soulbound:   { name:'縛靈族',   fac:'暮痕部盟', zone:'cragclaw',
+    classes:['warrior','rogue','priest','mage','warlock'],
+    desc:'不息之軀:擊殺後吞噬殘渣,回復 5% 生命' },
+  broadhoof:   { name:'巨蹄族',   fac:'暮痕部盟', zone:'cragclaw',
+    classes:['warrior','ranger','shaman','druid'],
+    desc:'大地之賜:生命上限+5%' },
+  mireshade:   { name:'影沼族',   fac:'暮痕部盟', zone:'cragclaw',
+    classes:['warrior','ranger','rogue','priest','shaman','mage'],
+    desc:'再生:戰鬥中亦持續回復生命 1%/秒' },
+};
+const CLASSES = {
+  warrior: { name:'戰士',   res:'rage',   resName:'怒氣', resMax:100, regen:0,   barClass:'rage', desc:'近戰坦克.受擊與攻擊累積怒氣' },
+  paladin: { name:'聖衛士', res:'mana',   resName:'法力', resMax:130, regen:1.7, barClass:'mp',   desc:'聖印與祝福.打得慢但打不死(聯邦專屬)' },
+  ranger:  { name:'遊俠',   res:'mana',   resName:'法力', resMax:120, regen:1.6, barClass:'mp',   desc:'遠程物理.寵物輔助,掛機最穩' },
+  rogue:   { name:'影刃',   res:'energy', resName:'能量', resMax:100, regen:10,  barClass:'rage', desc:'連擊點與終結技.潛行偷襲爆發' },
+  priest:  { name:'司祭',   res:'mana',   resName:'法力', resMax:140, regen:1.8, barClass:'mp',   desc:'治療與暗影.打不死的單練者' },
+  shaman:  { name:'靈語者', res:'mana',   resName:'法力', resMax:130, regen:1.7, barClass:'mp',   desc:'圖騰與元素.攻守兼備(部盟專屬)' },
+  mage:    { name:'秘法師', res:'mana',   resName:'法力', resMax:140, regen:1.8, barClass:'mp',   desc:'火冰奧術.凍結控場的玻璃大砲' },
+  warlock: { name:'咒縛者', res:'mana',   resName:'法力', resMax:140, regen:1.7, barClass:'mp',   desc:'持續傷害與惡魔僕從.以血養法' },
+  druid:   { name:'化形者', res:'mana',   resName:'法力', resMax:130, regen:1.7, barClass:'mp',   desc:'熊坦豹刃.萬能變形者' },
+};
+
+/* 技能:lv=習得等級 cost=資源 cd=冷卻ms cast=讀條ms
+   type: dmg(武傷倍率bp,flat) / dot / heal / hot / shield / buff / stance */
+const SKILLS = {
+  // 戰士
+  sk_heroic:  { cls:'warrior', name:'猛擊',     lv:1, cost:15, cd:0,     type:'dmg',  wbp:11000, flat:12 },
+  sk_shout:   { cls:'warrior', name:'戰鬥怒吼', lv:1, cost:10, cd:8000,  type:'buff', stat:'atk', bp:1000, dur:60000, msg:'攻擊強度提升!' },
+  sk_charge:  { cls:'warrior', name:'衝鋒',     lv:4, cost:-15,cd:15000, type:'dmg',  wbp:5000, flat:6, opener:true, msg:'衝鋒!' },
+  sk_thunder: { cls:'warrior', name:'雷霆一擊', lv:6, cost:20, cd:6000,  type:'dmg',  wbp:6000, flat:8, debuff:{stat:'atkspd',bp:-1000,dur:10000} },
+  sk_wall:    { cls:'warrior', name:'堅壁',     lv:8, cost:20, cd:30000, type:'buff', stat:'dr', bp:2000, dur:10000, msg:'舉盾架勢:受傷-20%' },
+  sk_dstance: { cls:'warrior', name:'防禦姿態', lv:10,cost:0,  cd:3000,  type:'stance' },
+  // 遊俠
+  sk_arcshot: { cls:'ranger', name:'奧術射擊', lv:1, cost:14, cd:6000,  type:'dmg', wbp:9000, flat:8 },
+  sk_serpent: { cls:'ranger', name:'蛇咬射擊', lv:1, cost:16, cd:0,     type:'dot', dps:0.9, dur:15000, name2:'蛇毒' },
+  sk_tame:    { cls:'ranger', name:'馴服野獸', lv:4, cost:0,  cd:0,     type:'pet' },
+  sk_aimed:   { cls:'ranger', name:'瞄準射擊', lv:8, cost:26, cd:6000,  cast:3000, type:'dmg', wbp:14000, flat:10 },
+  sk_mark:    { cls:'ranger', name:'獵人印記', lv:10,cost:10, cd:0,     type:'buff', stat:'takemore', bp:1000, dur:120000, onEnemy:true, msg:'獵人印記:目標受傷+10%' },
+  // 聖衛士
+  sk_holylight:{ cls:'paladin', name:'聖光術',   lv:1, cost:30, cd:0,      cast:2500, type:'heal', mult:2.6 },
+  sk_seal:    { cls:'paladin', name:'正義聖印', lv:1, cost:10, cd:8000,   type:'buff', stat:'atk', bp:1500, dur:600000, msg:'正義聖印:攻擊附加神聖之力' },
+  sk_bless:   { cls:'paladin', name:'力量祝福', lv:4, cost:15, cd:0,      type:'buff', stat:'atk', bp:800, dur:600000, msg:'力量祝福:攻擊強度+8%' },
+  sk_judge:   { cls:'paladin', name:'審判',     lv:6, cost:24, cd:8000,   type:'dmg', spell:1.5 },
+  sk_hammer:  { cls:'paladin', name:'制裁之錘', lv:8, cost:26, cd:45000,  type:'stun', dur:3000, msg:'制裁之錘:敵人暈眩 3 秒!' },
+  sk_bubble:  { cls:'paladin', name:'聖盾術',   lv:10,cost:30, cd:120000, type:'buff', stat:'dr', bp:10000, dur:8000, msg:'聖盾術:8 秒完全免疫!' },
+  // 影刃
+  sk_sinister:{ cls:'rogue', name:'邪惡攻擊', lv:1, cost:40, cd:0,     type:'dmg', wbp:10000, flat:8, cp:1 },
+  sk_evis:    { cls:'rogue', name:'剔骨',     lv:1, cost:35, cd:0,     type:'fin' },
+  sk_stealth: { cls:'rogue', name:'潛行',     lv:4, cost:0,  cd:10000, type:'stealth' },
+  sk_ambush:  { cls:'rogue', name:'偷襲',     lv:6, cost:60, cd:0,     type:'dmg', wbp:25000, flat:10, req:'stealth', cp:2 },
+  sk_kick:    { cls:'rogue', name:'腳踢',     lv:8, cost:25, cd:10000, type:'interrupt' },
+  sk_rupture: { cls:'rogue', name:'割裂',     lv:10,cost:25, cd:0,     type:'findot' },
+  // 靈語者
+  sk_bolt:    { cls:'shaman', name:'閃電箭',     lv:1, cost:20, cd:0,     cast:2000, type:'dmg', spell:1.4 },
+  sk_stoneskin:{cls:'shaman', name:'石膚圖騰',   lv:1, cost:18, cd:15000, type:'buff', stat:'dr', bp:1200, dur:60000, msg:'石膚圖騰:受物理傷害減免' },
+  sk_healwave:{ cls:'shaman', name:'治療波',     lv:4, cost:28, cd:0,     cast:2500, type:'heal', mult:2.5 },
+  sk_ftongue: { cls:'shaman', name:'火舌武器',   lv:6, cost:12, cd:0,     type:'buff', stat:'atk', bp:1000, dur:1800000, msg:'火舌武器:攻擊附加火焰' },
+  sk_eshock:  { cls:'shaman', name:'大地震擊',   lv:8, cost:22, cd:6000,  type:'interrupt', spell:1.1 },
+  sk_novatot: { cls:'shaman', name:'火焰新星圖騰',lv:10,cost:30, cd:10000, type:'dmg', spell:1.9 },
+  // 秘法師
+  sk_fireball:{ cls:'mage', name:'火球術',   lv:1, cost:22, cd:0,     cast:3000, type:'dmg', spell:1.9 },
+  sk_frostbolt:{cls:'mage', name:'寒冰箭',   lv:1, cost:20, cd:0,     cast:2500, type:'dmg', spell:1.4, debuff:{stat:'atkspd',bp:-2000,dur:5000} },
+  sk_missiles:{ cls:'mage', name:'奧術飛彈', lv:4, cost:24, cd:6000,  type:'dmg', spell:1.5 },
+  sk_fireblast:{cls:'mage', name:'火焰衝擊', lv:6, cost:22, cd:8000,  type:'dmg', spell:1.2 },
+  sk_nova:    { cls:'mage', name:'冰霜新星', lv:8, cost:26, cd:25000, type:'stun', dur:4000, msg:'冰霜新星:敵人凍結原地!' },
+  sk_arcint:  { cls:'mage', name:'奧術智慧', lv:10,cost:15, cd:0,     type:'buff', stat:'atk', bp:800, dur:1800000, msg:'奧術智慧:法術強度提升' },
+  // 咒縛者
+  sk_sbolt:   { cls:'warlock', name:'暗影箭',   lv:1, cost:20, cd:0,     cast:2500, type:'dmg', spell:1.5 },
+  sk_corr:    { cls:'warlock', name:'腐蝕術',   lv:1, cost:22, cd:0,     type:'dot', dps:1.0, dur:18000, name2:'腐蝕' },
+  sk_imp:     { cls:'warlock', name:'召喚小鬼', lv:4, cost:0,  cd:0,     type:'pet' },
+  sk_tap:     { cls:'warlock', name:'生命分流', lv:6, cost:0,  cd:3000,  type:'drain' },
+  sk_fear:    { cls:'warlock', name:'恐懼術',   lv:8, cost:24, cd:30000, type:'stun', dur:4000, msg:'恐懼術:敵人陷入恐懼四竄!' },
+  sk_immo:    { cls:'warlock', name:'獻祭',     lv:10,cost:24, cd:0,     type:'dot', dps:0.9, dur:15000, name2:'獻祭之火' },
+  // 化形者
+  sk_moonfire:{ cls:'druid', name:'月火術',   lv:1, cost:20, cd:0,     type:'dmg', spell:1.2 },
+  sk_rejuv:   { cls:'druid', name:'回春術',   lv:1, cost:22, cd:0,     type:'hot', hps:0.6, dur:12000 },
+  sk_touch:   { cls:'druid', name:'治療之觸', lv:4, cost:30, cd:0,     cast:3000, type:'heal', mult:3.0 },
+  sk_bear:    { cls:'druid', name:'熊形態',   lv:6, cost:0,  cd:3000,  type:'form', form:'bear' },
+  sk_maul:    { cls:'druid', name:'槌擊',     lv:8, cost:15, cd:10000, type:'stun', dur:2000, wbp:8000, msg:'槌擊:敵人暈眩 2 秒!' },
+  sk_cat:     { cls:'druid', name:'豹形態',   lv:10,cost:0,  cd:3000,  type:'form', form:'cat' },
+  // 司祭
+  sk_smite:   { cls:'priest', name:'懲擊',     lv:1, cost:18, cd:0,     cast:1500, type:'dmg', wbp:0, flat:0, spell:1.35 },
+  sk_renew:   { cls:'priest', name:'恢復',     lv:1, cost:20, cd:0,     type:'hot', hps:0.55, dur:15000 },
+  sk_pws:     { cls:'priest', name:'真言術:盾',lv:4, cost:26, cd:8000,  type:'shield', mult:2.4 },
+  sk_flash:   { cls:'priest', name:'快速治療', lv:6, cost:24, cd:0,     cast:1500, type:'heal', mult:2.2 },
+  sk_blast:   { cls:'priest', name:'心靈震爆', lv:8, cost:24, cd:8000,  type:'dmg', spell:1.6 },
+  sk_swp:     { cls:'priest', name:'暗言術:痛',lv:10,cost:22, cd:0,     type:'dot', dps:1.1, dur:18000, name2:'暗言術:痛' },
+};
+
+/* 物品 */
+const ITEMS = {
+  it_leather:  { name:'劣質皮革',   sell:3,  q:'white', mat:1 },
+  it_ribs:     { name:'豬肋排',     sell:4,  q:'white', mat:1 },
+  it_linen:    { name:'亞麻布',     sell:4,  q:'white', mat:1 },
+  it_silk:     { name:'蛛絲',       sell:5,  q:'white', mat:1 },
+  it_crab:     { name:'蟹肉',       sell:5,  q:'white', mat:1 },
+  it_venom:    { name:'微毒腺',     sell:7,  q:'white', mat:1 },
+  it_thick:    { name:'厚實皮革',   sell:8,  q:'white', mat:1 },
+  it_bearmeat: { name:'熊肉',       sell:6,  q:'white', mat:1 },
+  it_feather:  { name:'掠鳥羽毛',   sell:4,  q:'white', mat:1 },
+  it_scorp:    { name:'蠍毒囊',     sell:7,  q:'white', mat:1 },
+  it_lionfang: { name:'獅牙',       sell:8,  q:'white', mat:1 },
+  it_shardW:   { name:'元素之心碎片(風)', sell:50, q:'green', mat:1 },
+  it_shardE:   { name:'元素之心碎片(土)', sell:50, q:'green', mat:1 },
+  it_herb:     { name:'平原之葉',   sell:2,  q:'white', mat:1 },
+  it_herb2:    { name:'烈日花',     sell:2,  q:'white', mat:1 },
+  it_hpot:     { name:'初級治療藥水', sell:5, q:'white', pot:'hp',  val:.45, cd:15000 },
+  it_mpot:     { name:'初級法力藥水', sell:5, q:'white', pot:'res', val:.5,  cd:15000 },
+};
+/* 裝備(武器 dps 依 11.2:白=2.1L+4,綠×1.1,藍×1.25) */
+const EQUIPS = {
+  w_start_war:{ slot:'w', name:'新兵闊劍',   lv:1, q:'white', dps:6.1,  dmax:90 },
+  w_start_rng:{ slot:'w', name:'獵手短弓',   lv:1, q:'white', dps:6.1,  dmax:90 },
+  w_start_pri:{ slot:'w', name:'見習杖',     lv:1, q:'white', dps:6.1,  dmax:90 },
+  w_q4:       { slot:'w', name:'民兵之刃',   lv:4, q:'green', dps:13.6, dmax:90 },
+  w_q4b:      { slot:'w', name:'部族獵弓',   lv:4, q:'green', dps:13.6, dmax:90 },
+  w_q4c:      { slot:'w', name:'祈願之杖',   lv:4, q:'green', dps:13.6, dmax:90 },
+  c_start:    { slot:'c', name:'粗布上衣',   lv:1, q:'white', armor:22, dmax:60 },
+  c_q7:       { slot:'c', name:'哨衛胸甲',   lv:7, q:'green', armor:99, dmax:60 },
+  w_boss:     { slot:'w', name:'疤面的斷刃', lv:10,q:'blue',  dps:31.3, dmax:90 },
+  w_bossB:    { slot:'w', name:'斷誓者之牙', lv:10,q:'blue',  dps:31.3, dmax:90 },
+};
+
+/* 怪物(GDB 7.2 / 7.4;hp/atk=null 由公式生成) */
+const ZONES = {
+  dawnvale: { name:'曦光谷', town:'曦壘鎮', herb:'it_herb', mobs:[
+    { id:'wolf',   name:'幼狼',       lv:2, rank:'normal', beast:1, loot:[['it_leather',3500],['coin',2,6]] },
+    { id:'boar',   name:'曠野野豬',   lv:3, rank:'normal', beast:1, loot:[['it_ribs',3500],['coin',3,7]] },
+    { id:'scout',  name:'刃疤幫斥候', lv:4, rank:'normal', loot:[['it_linen',4000],['coin',5,10]] },
+    { id:'spider', name:'林地蜘蛛',   lv:5, rank:'normal', beast:1, loot:[['it_silk',3500],['it_venom',1200],['coin',4,9]] },
+    { id:'crab',   name:'河岸泥爬蟹', lv:6, rank:'normal', beast:1, loot:[['it_crab',3500],['coin',5,10]] },
+    { id:'mage',   name:'刃疤幫法師', lv:7, rank:'normal', caster:1, loot:[['it_linen',4000],['it_mpot',1500],['coin',7,13]] },
+    { id:'bear',   name:'曦谷黑熊',   lv:8, rank:'normal', beast:1, loot:[['it_thick',3000],['it_bearmeat',3000],['coin',8,14]] },
+    { id:'treant', name:'枯木樹精',   lv:9, rank:'normal', loot:[['it_shardW',300],['it_shardE',300],['coin',9,16]] },
+    { id:'rare',   name:'銀鬃狼王',   lv:6, rank:'rare',  beast:1, hide:1, loot:[['it_thick',10000],['coin',40,80]] },
+    { id:'boss',   name:'刃疤頭目「疤面卡爾」', lv:10, rank:'elite', hide:1, loot:[['coin',120,200]], bossDrop:'w_boss' },
+  ]},
+  cragclaw: { name:'裂爪荒原', town:'裂爪堡', herb:'it_herb2', mobs:[
+    { id:'hyena',  name:'荒原土狼',   lv:2, rank:'normal', beast:1, loot:[['it_leather',3500],['coin',2,6]] },
+    { id:'bird',   name:'尖喙掠鳥',   lv:3, rank:'normal', beast:1, loot:[['it_feather',3500],['coin',3,7]] },
+    { id:'scorp',  name:'沙棘蠍',     lv:5, rank:'normal', beast:1, loot:[['it_scorp',3000],['coin',4,9]] },
+    { id:'raider', name:'流亡劫掠者', lv:5, rank:'normal', loot:[['it_linen',4000],['coin',5,10]] },
+    { id:'boar2',  name:'岩齒野豬',   lv:6, rank:'normal', beast:1, loot:[['it_ribs',3500],['coin',5,10]] },
+    { id:'dust',   name:'塵暴元素',   lv:7, rank:'normal', loot:[['it_shardW',300],['it_shardE',300],['coin',6,12]] },
+    { id:'wind',   name:'劫掠者祈風者', lv:8, rank:'normal', caster:1, loot:[['it_linen',4000],['it_mpot',1500],['coin',8,14]] },
+    { id:'lion',   name:'荒原獅',     lv:9, rank:'normal', beast:1, loot:[['it_thick',3000],['it_lionfang',3000],['coin',9,16]] },
+    { id:'rare',   name:'白鬃土狼王', lv:5, rank:'rare',  beast:1, hide:1, loot:[['it_thick',10000],['coin',35,70]] },
+    { id:'boss',   name:'劫掠者首領「斷誓者格倫」', lv:10, rank:'elite', hide:1, loot:[['coin',120,200]], bossDrop:'w_bossB' },
+  ]},
+};
+
+/* 任務鏈(GDB 9.2 / 9.3;xp=同級怪×6) */
+function Q(id,name,lv,type,tgt,n,brief,rw){ return {id,name,lv,type,tgt,n,brief,rw}; }
+const QUESTS = {
+  dawnvale: [
+    Q('A1','初來乍到',1,'talk',null,1,'前往曦壘鎮,會見鎮長(城鎮頁報到)',{}),
+    Q('A2','狼群威脅',2,'kill','wolf',8,'獵殺幼狼×8',{}),
+    Q('A3','野豬肉排',3,'collect','it_ribs',6,'收集豬肋排×6',{item:['it_hpot',3]}),
+    Q('A4','北嶺的影子',4,'kill','scout',8,'擊殺刃疤幫斥候×8',{equip:'w_q4'}),
+    Q('A5','蛛絲馬跡',5,'collect','it_silk',5,'收集蛛絲×5(採集教學:試試🌿採集)',{}),
+    Q('A6','河畔的訪客',6,'kill','crab',6,'擊殺河岸泥爬蟹×6',{item:['it_hpot',3]}),
+    Q('A7','法師的把戲',7,'kill','mage',6,'擊殺刃疤幫法師×6',{equip:'c_q7'}),
+    Q('A8','黑熊之患',8,'kill','bear',8,'擊殺曦谷黑熊×8',{item:['it_hpot',5]}),
+    Q('A9','枯木之心',9,'kill','treant',8,'擊殺枯木樹精×8(留意元素之心碎片)',{}),
+    Q('A10','疤面卡爾',10,'boss','boss',1,'討伐刃疤頭目(菁英,備妥藥水!)',{}),
+  ],
+  cragclaw: [
+    Q('B1','荒原之子',1,'talk',null,1,'前往裂爪堡,向氏族長報到(城鎮頁報到)',{}),
+    Q('B2','土狼環伺',2,'kill','hyena',8,'獵殺荒原土狼×8',{}),
+    Q('B3','岩齒獵手',3,'collect','it_ribs',6,'收集豬肋排×6(岩齒野豬掉落)',{item:['it_hpot',3]}),
+    Q('B4','商路劫掠',4,'kill','raider',8,'擊殺流亡劫掠者×8',{equip:'w_q4b'}),
+    Q('B5','蠍毒入藥',5,'collect','it_scorp',4,'收集蠍毒囊×4(採集教學:試試🌿採集)',{}),
+    Q('B6','乾谷狩獵',6,'kill','boar2',6,'擊殺岩齒野豬×6',{item:['it_hpot',3]}),
+    Q('B7','祈風者的陰謀',7,'kill','wind',6,'擊殺劫掠者祈風者×6',{equip:'c_q7'}),
+    Q('B8','荒原獅王',8,'kill','lion',8,'擊殺荒原獅×8',{item:['it_hpot',5]}),
+    Q('B9','塵暴之核',9,'kill','dust',8,'擊殺塵暴元素×8(留意元素之心碎片)',{}),
+    Q('B10','斷誓者格倫',10,'boss','boss',1,'討伐劫掠者首領(菁英,備妥藥水!)',{}),
+  ],
+};
+/* 職業對應起始武器與任務綠武 */
+const STARTW = { warrior:'w_start_war', paladin:'w_start_war', rogue:'w_start_war',
+                 ranger:'w_start_rng',
+                 priest:'w_start_pri', shaman:'w_start_pri', mage:'w_start_pri', warlock:'w_start_pri', druid:'w_start_pri' };
+const CLASS_W = { warrior:'w_q4', paladin:'w_q4', rogue:'w_q4',
+                  ranger:'w_q4b',
+                  priest:'w_q4c', shaman:'w_q4c', mage:'w_q4c', warlock:'w_q4c', druid:'w_q4c' };
+</script>
+<script>
+/* ===== 狀態與存檔 ===== */
+const SAVEKEY = 'eternal_legacy_proto_v01';      // 舊版單角色(自動遷移)
+const ROSTERKEY = 'eternal_legacy_roster_v1';    // 角色名冊(8 欄位)
+const MAXCHARS = 8;
+let S = null;            // 玩家狀態
+let mob = null;          // 當前敵人
+let casting = null;      // {sk,end,total,byMob}
+let lastTick = Date.now();
+const $ = id => document.getElementById(id);
+
+function newState(name, race, cls){
+  return {
+    v:1, name, race, cls, zone:RACES[race].zone,
+    lv:1, xp:0, hp:F.pHp(1), res:0, combo:0, form:null,
+    gold:0, energy:100, rest:0, mode:'manual',
+    bag:{ it_hpot:3 }, herbSkill:0, alchSkill:0,
+    eq:{ w:mkEq(STARTW[cls]), c:mkEq('c_start') },
+    qi:0, qn:0, qdone:false,          // 任務索引/計數/待回報
+    kills:0, deaths:0, shards:0,
+    pet:false, stance:false, cds:{}, potCd:0,
+    ts:Date.now(), created:Date.now(), rareCd:0,
+  };
+}
+function mkEq(id){ const e=EQUIPS[id]; return {id, dur:e.dmax}; }
+let R={ list:[], active:-1 };
+function loadRoster(){
+  try{
+    const t=localStorage.getItem(ROSTERKEY);
+    if(t) return JSON.parse(t);
+    const old=localStorage.getItem(SAVEKEY);           // 舊存檔遷移
+    if(old){ const s=JSON.parse(old); localStorage.removeItem(SAVEKEY); return {list:[s], active:0}; }
+  }catch(e){}
+  return {list:[], active:-1};
+}
+function save(){
+  if(S && R.active>=0){ S.ts=Date.now(); R.list[R.active]=S; }
+  try{ localStorage.setItem(ROSTERKEY, JSON.stringify(R)); }catch(e){}
+}
+
+/* ===== 數值輔助 ===== */
+function wdps(){ const e=S.eq.w, d=EQUIPS[e.id]; return e.dur>0 ? d.dps : 0; }
+function armor(){ const e=S.eq.c, d=EQUIPS[e.id]; return (e.dur>0 && d.armor)? d.armor : 0; }
+function maxHp(){ return Math.round(F.pHp(S.lv)*(S.race==='broadhoof'?1.05:1)); }
+function resMax(){ const C=CLASSES[S.cls]; return Math.round(C.resMax*(S.race==='cogling'?1.15:1)); }
+function swingDmg(){                       // 每 2 秒一次的自動攻擊
+  let base=(wdps()+F.statDps(S.lv))*2;
+  if(S.pet) base*=1.12;
+  if(S.buffs) for(const b of S.buffs) if(b.stat==='atk') base*=(1+b.bp/10000);
+  if(S.stance) base*=0.9;
+  if(S.form==='bear') base*=0.85;
+  if(S.form==='cat')  base*=1.15;
+  return base;
+}
+function vary(x){ return Math.max(1, Math.round(x*(0.85+Math.random()*0.3))); }
+function fmtG(c){ const g=Math.floor(c/10000), s=Math.floor(c%10000/100), b=c%100;
+  return (g?g+'金':'')+(s?s+'銀':'')+((b||(!g&&!s))?b+'銅':''); }
+function fmtT(s){ s=Math.round(s); const h=Math.floor(s/3600),m=Math.floor(s%3600/60);
+  return (h?h+'小時':'')+(m?m+'分':'')+(!h&&!m?s+'秒':''); }
+
+/* ===== 戰鬥文字流 ===== */
+function log(html, cls){
+  const box=$('log'), p=document.createElement('p');
+  if(cls) p.className=cls; p.innerHTML='› '+html;
+  box.appendChild(p);
+  while(box.children.length>80) box.removeChild(box.firstChild);
+  box.scrollTop=box.scrollHeight;
+}
+
+/* ===== 敵人 ===== */
+function spawn(mid, forced){
+  const z=ZONES[S.zone];
+  let def=z.mobs.find(m=>m.id===mid);
+  // 稀有怪突襲:4% 機率(30 分鐘冷卻)
+  if(!forced && Date.now()>S.rareCd && Math.random()<0.04){
+    def=z.mobs.find(m=>m.rank==='rare'); S.rareCd=Date.now()+1800000;
+    log('<b class="l-warn">大地一陣震動……稀有怪物現身!</b>','l-warn');
+  }
+  const r=RANK[def.rank];
+  mob={ def, hp:Math.round(F.mobHp(def.lv)*r.hp), hpMax:Math.round(F.mobHp(def.lv)*r.hp),
+        atk:Math.round(F.mobAtk(def.lv)*r.atk), nextAtk:Date.now()+1500, nextSwing:Date.now()+400,
+        cast:null, debuffs:[] };
+  S.buffs=S.buffs||[];
+  if(S.race==='warfang') addBuff({stat:'atk',bp:1000,dur:15000}, '血怒湧動:攻擊+10%!');
+  log('遭遇 <b style="color:#e0b0b0">'+def.name+'</b> Lv'+def.lv+' <span class="l-warn">'+r.t+'</span>');
+  pSwing=Date.now()+(((S.buffs||[]).some(b=>b.stat==='stealth'))?2600:700);
+  // AI 開場技
+  if(S.mode==='auto') aiOpener();
+  renderEnemy();
+}
+function despawn(){ mob=null; casting=null; if(S) S.combo=0; renderEnemy(); }
+
+/* ===== Buff / DoT ===== */
+function addBuff(b, msg){ S.buffs=S.buffs||[]; S.buffs.push({...b, end:Date.now()+b.dur}); if(msg) log(msg,'l-sys'); }
+function drTotal(){
+  let dr=F.armorDR(armor(), mob?mob.def.lv:S.lv);
+  if(S.stance) dr=1-(1-dr)*0.9;
+  if(S.buffs) for(const b of S.buffs) if(b.stat==='dr') dr=1-(1-dr)*(1-b.bp/10000);
+  if(S.form==='bear') dr=1-(1-dr)*0.8;
+  if(S.form==='cat')  dr=Math.max(0,1-(1-dr)*1.1);
+  return Math.min(0.95,dr);
+}
+
+/* ===== 玩家技能 ===== */
+function learned(){ return Object.entries(SKILLS).filter(([k,s])=>s.cls===S.cls && s.lv<=S.lv); }
+function canCast(k){
+  const sk=SKILLS[k]; if(!sk) return false;
+  if(casting) return false;
+  if((S.cds[k]||0)>Date.now()) return false;
+  if(sk.cost>0 && S.res<sk.cost) return false;
+  if(sk.req==='stealth' && !(S.buffs||[]).some(b=>b.stat==='stealth')) return false;
+  if((sk.type==='fin'||sk.type==='findot') && !(S.combo>0)) return false;
+  if(sk.type==='stealth' && mob) return false;
+  if(!['stance','pet','form','stealth','drain','heal','hot','shield'].includes(sk.type) && !mob) return false;
+  return true;
+}
+function useSkill(k, silent){
+  if(!canCast(k)) return false;
+  const sk=SKILLS[k];
+  if(sk.cast){ casting={sk:k, end:Date.now()+sk.cast, total:sk.cast}; return true; }
+  resolveSkill(k); return true;
+}
+function resolveSkill(k){
+  const sk=SKILLS[k];
+  S.res=Math.max(0,Math.min(resMax(), S.res-sk.cost));
+  S.cds[k]=Date.now()+(sk.cd||0)+1500;   // 含 GCD
+  const base=swingDmg();
+  if(sk.type==='dmg' && mob){
+    let d=(sk.wbp?base*sk.wbp/10000:0)+(sk.flat||0)+(sk.spell?base*sk.spell:0);
+    hitMob(vary(d), sk.name);
+    if(sk.cp) S.combo=Math.min(5,(S.combo||0)+sk.cp);
+    if(sk.debuff && mob) mob.debuffs.push({...sk.debuff, end:Date.now()+sk.debuff.dur});
+  }
+  else if(sk.type==='fin' && mob){
+    const c=S.combo; S.combo=0;
+    hitMob(vary(base*0.55*c+10*c), sk.name+'('+c+'星)');
+  }
+  else if(sk.type==='findot' && mob){
+    const c=S.combo; S.combo=0;
+    mob.debuffs.push({dot:1, dps:0.5*c*F.statDps(S.lv), end:Date.now()+6000+2000*c, nm:sk.name});
+    log(sk.name+'('+c+'星):流血侵蝕目標','l-dmg');
+  }
+  else if(sk.type==='stun' && mob){
+    mob.stunEnd=Date.now()+sk.dur; mob.cast=null;
+    mob.nextAtk=Math.max(mob.nextAtk, mob.stunEnd);
+    log(sk.msg,'l-warn');
+    if(sk.wbp) hitMob(vary(base*sk.wbp/10000), sk.name);
+  }
+  else if(sk.type==='interrupt' && mob){
+    let bonus=1;
+    if(mob.cast){ mob.cast=null; bonus=1.3; log('你打斷了敵人的詠唱!','l-warn'); }
+    hitMob(vary(base*(sk.spell||0.5)*bonus), sk.name);
+  }
+  else if(sk.type==='drain'){
+    const c=Math.round(maxHp()*0.12);
+    if(S.hp>c+5){ S.hp-=c; S.res=Math.min(resMax(),S.res+25); log('生命分流:-'+c+' 生命 → +25 法力','l-sys'); }
+    else log('生命不足,無法分流','l-warn');
+  }
+  else if(sk.type==='stealth'){
+    addBuff({stat:'stealth', dur:20000}, '你隱入陰影……(遭遇敵人後施展偷襲)');
+  }
+  else if(sk.type==='form'){
+    S.form=(S.form===sk.form?null:sk.form);
+    log(S.form?(sk.form==='bear'?'化為巨熊:受傷-20%/傷害-15%':'化為獵豹:傷害+15%/受傷+10%'):'解除形態,回復人形','l-sys');
+  }
+  else if(sk.type==='dot' && mob){ mob.debuffs.push({dot:1, dps:sk.dps*F.statDps(S.lv), end:Date.now()+sk.dur, nm:sk.name2}); log(sk.name+':<b class="l-dmg">'+sk.name2+'</b> 開始侵蝕目標','l-dmg'); }
+  else if(sk.type==='heal'){ const h=vary(base*sk.mult); S.hp=Math.min(maxHp(),S.hp+h); log(sk.name+' 恢復 <b class="l-heal">'+h+'</b> 生命','l-heal'); }
+  else if(sk.type==='hot'){ addBuff({hot:1, hps:sk.hps*F.statDps(S.lv), dur:sk.dur}, sk.name+':持續恢復生效'); }
+  else if(sk.type==='shield'){ S.shield=Math.round(base*sk.mult); S.shieldEnd=Date.now()+30000; log(sk.name+':吸收護盾 <b class="l-heal">'+S.shield+'</b>','l-heal'); }
+  else if(sk.type==='buff'){
+    if(sk.onEnemy&&mob){ mob.debuffs.push({stat:sk.stat,bp:sk.bp,end:Date.now()+sk.dur}); log(sk.msg,'l-sys'); }
+    else addBuff({stat:sk.stat,bp:sk.bp,dur:sk.dur}, sk.msg);
+  }
+  else if(sk.type==='stance'){ S.stance=!S.stance; log(S.stance?'進入防禦姿態(受傷-10%/傷害-10%)':'解除防禦姿態','l-sys'); }
+  else if(sk.type==='pet'){ if(!S.pet){ S.pet=true; log(S.cls==='warlock'?'一隻小鬼從虛空竄出,聽候差遣!自動攻擊傷害+12%':'你馴服了一頭野獸夥伴!自動攻擊傷害+12%','l-lvl'); } }
+  if(sk.req==='stealth') S.buffs=(S.buffs||[]).filter(b=>b.stat!=='stealth');
+  renderSkills();
+}
+function hitMob(d, src){
+  if(!mob) return;
+  let crit=Math.random()<0.05; if(crit) d*=2;
+  for(const db of mob.debuffs) if(db.stat==='takemore') d*=(1+db.bp/10000);
+  d=Math.round(d); mob.hp-=d;
+  log((src||'攻擊')+' 命中 '+mob.def.name+' <b class="'+(crit?'l-crit':'l-dmg')+'">-'+d+(crit?' 暴擊!':'')+'</b>', crit?'l-crit':'l-dmg');
+  if(mob.hp<=0) killMob();
+}
+
+/* ===== 擊殺/掉落/經驗 ===== */
+function gainMult(){ let m = S.energy>0?1:0.5; if(S.rest>0) m*=1.25; return m; }
+function killMob(){
+  const def=mob.def, r=RANK[def.rank];
+  S.kills++;
+  if(S.race==='soulbound' && S.hp<maxHp()){ S.hp=Math.min(maxHp(), S.hp+maxHp()*0.05); }
+  let xp=Math.round(F.mobXp(def.lv)*r.xp*gainMult());
+  log('<b style="color:#e0b0b0">'+def.name+'</b> 被擊敗!獲得 <b class="l-lvl">'+xp+'</b> 經驗','l-sys');
+  rollLoot(def);
+  if(def.rank!=='normal'&&def.bossDrop){
+    giveEquip(def.bossDrop);
+  }
+  questKill(def.id);
+  despawn();
+  gainXp(xp);
+  if(S.mode==='auto') setTimeout(()=>{ if(S.mode==='auto'&&!mob) spawn(currentHunt()); }, 1200);
+  renderHUD();
+}
+function rollLoot(def){
+  for(const l of def.loot){
+    if(l[0]==='coin'){ const c=l[1]+Math.floor(Math.random()*(l[2]-l[1]+1)); S.gold+=c; log('拾取 <b class="l-loot">'+fmtG(c)+'</b>','l-loot'); }
+    else if(Math.random()*10000<l[1]){ addItem(l[0],1); }
+  }
+  if(def.beast && Math.random()<0.5){ addItem('it_leather',1); } // 剝皮簡化
+}
+function addItem(id,n){
+  S.bag[id]=(S.bag[id]||0)+n;
+  const it=ITEMS[id];
+  if(id.startsWith('it_shard')) S.shards+=n;
+  log('拾取 <b class="l-loot q-'+it.q+'">['+it.name+']</b>'+(n>1?'×'+n:''),'l-loot');
+}
+function giveEquip(id){
+  const e=EQUIPS[id];
+  S.bag['EQ_'+id]=(S.bag['EQ_'+id]||0)+1;
+  log('獲得裝備 <b class="q-'+e.q+'">['+e.name+']</b>!至背包裝備','l-lvl');
+}
+function gainXp(xp){
+  if(S.lv>=LVCAP) return;
+  S.xp+=xp;
+  while(S.lv<LVCAP && S.xp>=F.xpNeed(S.lv)){
+    S.xp-=F.xpNeed(S.lv); S.lv++;
+    S.hp=maxHp(); S.res=S.cls==='warrior'?S.res:resMax();
+    log('<b>═══ 等級提升!Lv'+S.lv+' ═══</b>','l-lvl');
+    for(const [k,sk] of learned()) if(sk.lv===S.lv) log('習得新技能:<b class="l-lvl">'+sk.name+'</b>','l-lvl');
+    if(S.lv===LVCAP){ log('<b>你已抵達垂直切片等級上限 Lv10——完成最終任務吧!</b>','l-lvl'); S.xp=0; }
+    renderSkills();
+  }
+}
+
+/* ===== 玩家死亡(GDB 1.4:只扣耐久) ===== */
+function playerDie(){
+  S.deaths++;
+  log('<b class="l-take">你倒下了……靈魂返回'+ZONES[S.zone].town+'</b>','l-take');
+  for(const s of ['w','c']){ const e=S.eq[s]; e.dur=Math.max(0,e.dur-Math.ceil(EQUIPS[e.id].dmax*0.1)); }
+  log('全身裝備耐久 -10%(不掉等/不掉經驗/不掉裝/不掉錢)','l-warn');
+  S.hp=maxHp(); S.res=0; S.shield=0; S.buffs=[];
+  despawn();
+  if(S.mode==='auto') setTimeout(()=>{ if(S.mode==='auto'&&!mob) spawn(currentHunt()); }, 2500);
+}
+
+/* ===== AI 技能組(掛機模式;效率 ≈ 手動 80%) ===== */
+function aiOpener(){
+  if(S.cls==='warrior') useSkill('sk_charge');
+  if(S.cls==='ranger' && S.lv>=10) useSkill('sk_mark');
+  if(S.cls==='paladin' && !(S.buffs||[]).some(b=>b.stat==='atk')) useSkill('sk_seal');
+  if(S.cls==='shaman' && !(S.buffs||[]).some(b=>b.stat==='dr')) useSkill('sk_stoneskin');
+}
+function aiStep(){
+  if(S.potCd<Date.now() && S.hp<maxHp()*0.35 && (S.bag.it_hpot||0)>0){ usePotion('it_hpot'); return; }
+  if(S.cls==='warrior'){
+    if(S.hp<maxHp()*0.4 && canCast('sk_wall')) return useSkill('sk_wall');
+    if(!(S.buffs||[]).some(b=>b.stat==='atk') && canCast('sk_shout')) return useSkill('sk_shout');
+    if(S.res>=40 && canCast('sk_heroic')) return useSkill('sk_heroic');
+    if(canCast('sk_thunder') && S.res>=60) return useSkill('sk_thunder');
+  }else if(S.cls==='ranger'){
+    if(mob && !mob.debuffs.some(d=>d.dot) && canCast('sk_serpent')) return useSkill('sk_serpent');
+    if(canCast('sk_aimed')) return useSkill('sk_aimed');
+    if(canCast('sk_arcshot')) return useSkill('sk_arcshot');
+  }else if(S.cls==='priest'){
+    if(S.hp<maxHp()*0.6 && !S.shield && canCast('sk_pws')) return useSkill('sk_pws');
+    if(S.hp<maxHp()*0.75 && !(S.buffs||[]).some(b=>b.hot) && canCast('sk_renew')) return useSkill('sk_renew');
+    if(S.hp<maxHp()*0.45 && canCast('sk_flash')) return useSkill('sk_flash');
+    if(mob && S.lv>=10 && !mob.debuffs.some(d=>d.dot) && canCast('sk_swp')) return useSkill('sk_swp');
+    if(canCast('sk_blast')) return useSkill('sk_blast');
+    if(S.res>=40 && canCast('sk_smite')) return useSkill('sk_smite');
+  }else if(S.cls==='paladin'){
+    if(S.hp<maxHp()*0.25 && canCast('sk_bubble')) return useSkill('sk_bubble');
+    if(S.hp<maxHp()*0.5 && canCast('sk_holylight')) return useSkill('sk_holylight');
+    if(!(S.buffs||[]).some(b=>b.stat==='atk') && canCast('sk_seal')) return useSkill('sk_seal');
+    if(mob && mob.cast && canCast('sk_hammer')) return useSkill('sk_hammer');
+    if(canCast('sk_judge')) return useSkill('sk_judge');
+  }else if(S.cls==='rogue'){
+    if(mob && mob.cast && canCast('sk_kick')) return useSkill('sk_kick');
+    if(S.combo>=5 && S.lv>=10 && mob && !mob.debuffs.some(d=>d.dot) && canCast('sk_rupture')) return useSkill('sk_rupture');
+    if(S.combo>=5 && canCast('sk_evis')) return useSkill('sk_evis');
+    if(canCast('sk_ambush')) return useSkill('sk_ambush');
+    if(canCast('sk_sinister')) return useSkill('sk_sinister');
+  }else if(S.cls==='shaman'){
+    if(mob && mob.cast && canCast('sk_eshock')) return useSkill('sk_eshock');
+    if(S.hp<maxHp()*0.55 && canCast('sk_healwave')) return useSkill('sk_healwave');
+    if(!(S.buffs||[]).some(b=>b.stat==='dr') && canCast('sk_stoneskin')) return useSkill('sk_stoneskin');
+    if(S.lv>=6 && !(S.buffs||[]).some(b=>b.stat==='atk') && canCast('sk_ftongue')) return useSkill('sk_ftongue');
+    if(canCast('sk_novatot')) return useSkill('sk_novatot');
+    if(canCast('sk_bolt')) return useSkill('sk_bolt');
+  }else if(S.cls==='mage'){
+    if(S.hp<maxHp()*0.5 && canCast('sk_nova')) return useSkill('sk_nova');
+    if(S.lv>=10 && !(S.buffs||[]).some(b=>b.stat==='atk') && canCast('sk_arcint')) return useSkill('sk_arcint');
+    if(canCast('sk_fireblast')) return useSkill('sk_fireblast');
+    if(canCast('sk_missiles')) return useSkill('sk_missiles');
+    if(canCast('sk_fireball')) return useSkill('sk_fireball');
+  }else if(S.cls==='warlock'){
+    if(mob && !mob.debuffs.some(d=>d.dot) && canCast('sk_corr')) return useSkill('sk_corr');
+    if(S.hp<maxHp()*0.4 && canCast('sk_fear')) return useSkill('sk_fear');
+    if(S.res<30 && S.hp>maxHp()*0.7 && canCast('sk_tap')) return useSkill('sk_tap');
+    if(S.lv>=10 && mob && mob.debuffs.filter(d=>d.dot).length<2 && canCast('sk_immo')) return useSkill('sk_immo');
+    if(canCast('sk_sbolt')) return useSkill('sk_sbolt');
+  }else if(S.cls==='druid'){
+    if(S.hp<maxHp()*0.4 && S.lv>=6 && S.form!=='bear' && canCast('sk_bear')) return useSkill('sk_bear');
+    if(S.hp<maxHp()*0.75 && !(S.buffs||[]).some(b=>b.hot) && canCast('sk_rejuv')) return useSkill('sk_rejuv');
+    if(S.hp<maxHp()*0.4 && canCast('sk_touch')) return useSkill('sk_touch');
+    if(mob && mob.cast && canCast('sk_maul')) return useSkill('sk_maul');
+    if(canCast('sk_moonfire') && S.res>=60) return useSkill('sk_moonfire');
+  }
+}
+function usePotion(id){
+  if((S.bag[id]||0)<1 || S.potCd>Date.now()) return;
+  S.bag[id]--; S.potCd=Date.now()+ITEMS[id].cd;
+  if(ITEMS[id].pot==='hp'){ const h=Math.round(maxHp()*ITEMS[id].val); S.hp=Math.min(maxHp(),S.hp+h); log('飲下藥水,恢復 <b class="l-heal">'+h+'</b> 生命','l-heal'); }
+  else { const m=Math.round(resMax()*ITEMS[id].val); S.res=Math.min(resMax(),S.res+m); log('飲下藥水,恢復 <b class="l-heal">'+m+'</b> '+CLASSES[S.cls].resName,'l-heal'); }
+  renderBag();
+}
+
+/* ===== 任務 ===== */
+function curQ(){ return QUESTS[S.zone][S.qi]||null; }
+function questKill(mid){
+  const q=curQ(); if(!q||S.qdone) return;
+  if((q.type==='kill'||q.type==='boss') && q.tgt===mid){ S.qn++; checkQ(); }
+  if(q.type==='collect'){ S.qn=S.bag[q.tgt]||0; checkQ(); }
+  renderQuestDot();
+}
+function checkQ(){
+  const q=curQ(); if(!q) return;
+  if(q.type==='collect') S.qn=Math.min(S.bag[q.tgt]||0,q.n);
+  if(S.qn>=q.n && !S.qdone){ S.qdone=true; log('任務 <b class="l-lvl">['+q.name+']</b> 目標達成!至任務頁回報','l-lvl'); }
+  renderQuestDot();
+}
+function reportQ(){
+  const q=curQ(); if(!q||!S.qdone) return;
+  if(q.type==='collect'){ S.bag[q.tgt]-=q.n; if(S.bag[q.tgt]<=0) delete S.bag[q.tgt]; }
+  const xp=Math.round(6*F.mobXp(q.lv)*(q.type==='boss'?2:1));
+  log('完成任務 <b class="l-lvl">['+q.name+']</b>,獲得 '+xp+' 經驗','l-lvl');
+  if(q.rw.item){ addItem(q.rw.item[0],q.rw.item[1]); }
+  if(q.rw.equip){ giveEquip(q.rw.equip==='w_q4'?CLASS_W[S.cls]:q.rw.equip); }
+  S.qi++; S.qn=0; S.qdone=false;
+  gainXp(xp);
+  const nq=curQ();
+  if(nq){ log('接受新任務:<b class="l-sys">['+nq.name+'] '+nq.brief+'</b>','l-sys'); if(nq.type==='collect') checkQ(); }
+  else log('<b>═══ 垂直切片全任務完成!感謝試玩 ═══</b>','l-lvl');
+  renderQuest(); renderQuestDot(); renderTown(); save();
+}
+function renderQuestDot(){ $('qDot').textContent = (S&&S.qdone)?' ●':''; }
+
+/* ===== 採集與煉金(副職業切片) ===== */
+let gatherCd=0;
+function gather(){
+  if(Date.now()<gatherCd) return;
+  gatherCd=Date.now()+8000;
+  const herb=ZONES[S.zone].herb;
+  const n=1+(Math.random()<0.3?1:0);
+  addItem(herb,n); S.herbSkill++;
+  if(Math.random()<0.03){ addItem(Math.random()<0.5?'it_shardW':'it_shardE',1); log('<b class="l-warn">草叢間閃著微光——元素之心碎片!</b>','l-warn'); }
+  if(curQ()&&curQ().type==='collect') checkQ();
+  renderBag();
+}
+function craftPot(){
+  const herb=ZONES[S.zone].herb;
+  if((S.bag[herb]||0)<2){ log('材料不足:需要 '+ITEMS[herb].name+'×2','l-warn'); return; }
+  S.bag[herb]-=2; if(S.bag[herb]<=0) delete S.bag[herb];
+  addItem('it_hpot',1); S.alchSkill++;
+  renderTown(); renderBag();
+}
+</script>
+<script>
+/* ===== 主迴圈 ===== */
+let pSwing=0, lastUi=0;
+function tick(){
+  const now=Date.now(), dt=Math.min(1000, now-lastTick); lastTick=now;
+  if(!S) return;
+  const sec=dt/1000;
+
+  // 資源與回復
+  const C=CLASSES[S.cls];
+  if(C.res==='mana') S.res=Math.min(resMax(), S.res+C.regen*sec*(mob?1:2));
+  else if(C.res==='energy') S.res=Math.min(resMax(), S.res+10*sec);
+  else if(!mob) S.res=Math.max(0, S.res-2*sec);
+  if(!mob && S.hp<maxHp()) S.hp=Math.min(maxHp(), S.hp+maxHp()*0.02*sec);
+  if(S.race==='mireshade' && mob && S.hp<maxHp()) S.hp=Math.min(maxHp(), S.hp+maxHp()*0.01*sec);
+
+  // Buff / HoT / 護盾
+  if(S.buffs){
+    for(const b of S.buffs) if(b.hot && S.hp<maxHp()) S.hp=Math.min(maxHp(), S.hp+b.hps*sec);
+    S.buffs=S.buffs.filter(b=>b.end>now);
+  }
+  if(S.shield && S.shieldEnd<now) S.shield=0;
+
+  // 精力/安逸
+  if(S.mode==='auto'){ S.energy=Math.max(0, S.energy-8/3600*sec); if(mob&&S.rest>0) S.rest=Math.max(0,S.rest-sec); }
+  else S.energy=Math.min(100, S.energy+4/3600*sec);
+
+  // 施法
+  if(casting && now>=casting.end){ const k=casting.sk; casting=null; resolveSkill(k); }
+
+  // 玩家自動攻擊
+  if(mob && !casting && now>=pSwing){
+    pSwing=now+2000;
+    hitMob(vary(swingDmg()));
+    if((S.buffs||[]).some(b=>b.stat==='stealth')) S.buffs=S.buffs.filter(b=>b.stat!=='stealth');
+    if(C.res==='rage') S.res=Math.min(C.resMax, S.res+12);
+  }
+
+  // AI 技能組
+  if(S.mode==='auto' && mob) aiStep();
+
+  // 敵人行動
+  if(mob){
+    for(const d of mob.debuffs) if(d.dot){ mob.hp-=d.dps*sec; }
+    if(mob.hp<=0){ killMob(); }
+    else{
+      mob.debuffs=mob.debuffs.filter(d=>d.end>now);
+      if(mob.stunEnd && now<mob.stunEnd){ /* 暈眩/凍結/恐懼中 */ }
+      else if(mob.cast && now>=mob.cast.end){ mobHit(mob.atk*1.7, mob.cast.nm); mob.cast=null; }
+      else if(!mob.cast && now>=mob.nextAtk){
+        let iv=2000; for(const d of mob.debuffs) if(d.stat==='atkspd') iv*=(1-d.bp/10000);
+        mob.nextAtk=now+iv;
+        if(mob.def.caster && Math.random()<0.35) mob.cast={end:now+2200,total:2200,nm:'魔焰箭'};
+        else mobHit(mob.atk,null);
+      }
+    }
+  }
+
+  // UI(每 250ms 夠用;文字渲染低耗)
+  if(now-lastUi>240){ lastUi=now; renderHUD(); renderEnemy(); renderSkillCds(); }
+}
+function mobHit(raw, nm){
+  if(S.race==='starborn' && Math.random()<0.04){ log('你敏捷地閃過了攻擊!','l-sys'); return; }
+  let d=vary(raw*(1-drTotal())*(S.race==='stonewrought'?0.95:1));
+  if(S.shield>0){ const ab=Math.min(S.shield,d); S.shield-=ab; d-=ab; if(ab>0) log('護盾吸收 <b class="l-heal">'+ab+'</b>','l-heal'); }
+  if(d>0){
+    S.hp-=d;
+    log(mob.def.name+(nm?'的'+nm:'')+' 命中你 <b class="l-take">-'+d+'</b>','l-take');
+    if(CLASSES[S.cls].res==='rage') S.res=Math.min(100,S.res+4);
+    if(S.hp<=0) playerDie();
+  }
+}
+
+/* ===== 狩獵與模式 ===== */
+function currentHunt(){ return S.hunt || huntable()[0].id; }
+function huntable(){
+  const z=ZONES[S.zone], q=curQ();
+  return z.mobs.filter(m=>!m.hide || (q && q.type==='boss' && m.id===q.tgt && !S.qdone));
+}
+function setMode(m){
+  S.mode=m;
+  $('btnMode').textContent = m==='auto'?'🌙 掛機中':'⚔ 手動模式';
+  $('btnMode').classList.toggle('modeOn', m==='auto');
+  log(m==='auto'?'進入掛機模式:AI 技能組接手,消耗精力(效率約手動 80%)':'切回手動模式:不耗精力,手動更強','l-sys');
+  if(m==='auto'&&!mob) spawn(currentHunt());
+  renderSkills(); save();
+}
+
+/* ===== 渲染 ===== */
+function renderHUD(){
+  if(!S) return;
+  const C=CLASSES[S.cls];
+  $('hName').textContent='Lv'+S.lv+' '+S.name+'('+C.name+')';
+  $('hZone').textContent=ZONES[S.zone].name+' · '+fmtG(S.gold);
+  setBar('bHp','tHp',S.hp,maxHp(),Math.round(S.hp)+' / '+maxHp());
+  $('bResWrap').className='bar '+C.barClass;
+  setBar('bRes','tRes',S.res,resMax(),Math.round(S.res)+' '+C.resName+((S.combo||0)>0?' ◆×'+S.combo:'')+(S.form?(S.form==='bear'?' 🐻':' 🐆'):''));
+  const need=F.xpNeed(S.lv);
+  setBar('bXp','tXp',S.lv>=LVCAP?1:S.xp,S.lv>=LVCAP?1:need,S.lv>=LVCAP?'MAX(切片上限)':S.xp+' / '+need);
+  setBar('bEn','tEn',S.energy,100,Math.round(S.energy)+'%'+(S.rest>0?' +安逸':''));
+}
+function setBar(bi,ti,v,m,txt){ $(bi).style.width=Math.max(0,Math.min(100,v/m*100))+'%'; $(ti).textContent=txt; }
+function renderEnemy(){
+  if(!mob){ $('enemyName').textContent='尚未遭遇敵人'; setBar('bEhp','tEhp',0,1,''); $('castLabel').textContent=''; $('bCast').style.width='0'; return; }
+  const r=RANK[mob.def.rank];
+  $('enemyName').innerHTML=mob.def.name+' Lv'+mob.def.lv+' <span class="rank">'+r.t+'</span>';
+  setBar('bEhp','tEhp',mob.hp,mob.hpMax,Math.max(0,Math.round(mob.hp))+' / '+mob.hpMax);
+  const c=casting||mob.cast;
+  if(c){ const pct=100-Math.max(0,(c.end-Date.now())/c.total*100);
+    $('bCast').style.width=pct+'%';
+    $('castLabel').textContent=(casting?('施放中:'+SKILLS[casting.sk].name):('敵方詠唱:'+c.nm+'!'));
+  } else { $('bCast').style.width='0'; $('castLabel').textContent=''; }
+}
+function renderHunt(){
+  const sel=$('huntSel'); sel.innerHTML='';
+  for(const m of huntable()){
+    const o=document.createElement('option');
+    o.value=m.id; o.textContent='Lv'+m.lv+' '+m.name+(RANK[m.rank].t||'');
+    sel.appendChild(o);
+  }
+  if(S.hunt) sel.value=S.hunt;
+}
+function renderSkills(){
+  const bar=$('skillBar'); bar.innerHTML='';
+  learned().forEach(([k,sk],i)=>{
+    const b=document.createElement('button');
+    b.id='skb_'+k;
+    b.innerHTML=sk.name+(sk.type==='stance'&&S.stance?' ●':'')+'<span class="cost">'+(sk.cost>0?sk.cost+CLASSES[S.cls].resName[0]:sk.cost<0?'產'+(-sk.cost):'')+(i<6?' ['+(i+1)+']':'')+'</span>';
+    b.onclick=()=>{ if(S.mode==='auto'){ log('掛機模式由 AI 接手;切回手動可親自操作','l-warn'); return; } useSkill(k); };
+    bar.appendChild(b);
+  });
+  const pb=document.createElement('button');
+  pb.id='skb_pot'; pb.className='gold';
+  pb.innerHTML='治療藥水<span class="cost">×<span id="potN">'+(S.bag.it_hpot||0)+'</span> [Q]</span>';
+  pb.onclick=()=>usePotion('it_hpot');
+  bar.appendChild(pb);
+}
+function renderSkillCds(){
+  const now=Date.now();
+  for(const [k,sk] of learned()){
+    const b=$('skb_'+k); if(!b) continue;
+    const cd=(S.cds[k]||0)-now;
+    b.disabled = S.mode==='auto' || cd>0 || (sk.cost>0&&S.res<sk.cost) || !!casting;
+  }
+  const pn=$('potN'); if(pn) pn.textContent=S.bag.it_hpot||0;
+  const pb=$('skb_pot'); if(pb) pb.disabled=(S.bag.it_hpot||0)<1||S.potCd>now;
+  $('btnGather').disabled=Date.now()<gatherCd||!!mob;
+  $('btnFight').disabled=!!mob;
+}
+function renderChar(){
+  const C=CLASSES[S.cls],R=RACES[S.race];
+  const eqRow=s=>{ const e=S.eq[s],d=EQUIPS[e.id];
+    return '<div class="row"><div class="grow"><b class="q-'+d.q+'">['+d.name+']</b><small>'+(d.dps?('傷害 '+(d.dps*2).toFixed(0)+'/擊(DPS '+d.dps+')'):('護甲 '+d.armor))+' · 耐久 '+e.dur+'/'+d.dmax+(e.dur===0?' <b class="l-take">〔失效〕</b>':'')+'</small></div></div>'; };
+  $('pgChar').innerHTML=
+    '<div class="card"><h3>'+S.name+'</h3>'
+    +'<div class="kv"><span>種族/陣營</span><span>'+R.name+' · '+R.fac+'</span></div>'
+    +'<div class="kv"><span>職業</span><span>'+C.name+' Lv'+S.lv+'</span></div>'
+    +'<div class="kv"><span>生命</span><span>'+Math.round(S.hp)+' / '+maxHp()+'</span></div>'
+    +'<div class="kv"><span>自動攻擊</span><span>'+Math.round(swingDmg())+' / 2秒</span></div>'
+    +'<div class="kv"><span>護甲減傷</span><span>'+(drTotal()*100).toFixed(1)+'%</span></div>'
+    +'<div class="kv"><span>擊殺 / 死亡</span><span>'+S.kills+' / '+S.deaths+'</span></div>'
+    +'<div class="kv"><span>元素之心碎片</span><span>'+S.shards+'</span></div>'
+    +'<div class="kv"><span>採藥 / 煉金</span><span>'+S.herbSkill+' / '+S.alchSkill+'</span></div></div>'
+    +'<div class="card"><h3>裝備</h3>'+eqRow('w')+eqRow('c')+'</div>'
+    +'<div class="card"><h3>冒險紀錄(傳承)</h3><div class="kv"><span>建立於</span><span>'+new Date(S.created).toLocaleDateString()+'</span></div><div class="kv"><span>種族特性</span><span style="max-width:60%;text-align:right">'+R.desc+'</span></div></div>';
+}
+function renderBag(){
+  let h='<div class="card"><h3>金錢:'+fmtG(S.gold)+'</h3></div><div class="card"><h3>物品</h3>';
+  const keys=Object.keys(S.bag).filter(k=>S.bag[k]>0);
+  if(!keys.length) h+='<div class="row"><span style="color:var(--ink-dim)">背包空空如也——去打點什麼吧</span></div>';
+  for(const k of keys){
+    if(k.startsWith('EQ_')){
+      const eid=k.slice(3), e=EQUIPS[eid];
+      h+='<div class="row"><div class="grow"><b class="q-'+e.q+'">['+e.name+']</b><small>'+(e.dps?'武器 DPS '+e.dps:'護甲 '+e.armor)+' · Lv'+e.lv+'</small></div><button onclick="equipItem(\''+eid+'\')">裝備</button></div>';
+    }else{
+      const it=ITEMS[k];
+      h+='<div class="row"><div class="grow"><b class="q-'+it.q+'">['+it.name+']</b> ×'+S.bag[k]+'<small>'+(it.pot?'消耗品':'材料 · 委託價 '+fmtG(it.sell))+'</small></div>'+(it.pot?'<button onclick="usePotion(\''+k+'\')">使用</button>':'')+'</div>';
+    }
+  }
+  $('pgBag').innerHTML=h+'</div>';
+}
+function equipItem(eid){
+  const e=EQUIPS[eid], slot=e.slot;
+  const old=S.eq[slot];
+  S.eq[slot]=mkEq(eid);
+  S.bag['EQ_'+eid]--; if(S.bag['EQ_'+eid]<=0) delete S.bag['EQ_'+eid];
+  S.bag['EQ_'+old.id]=(S.bag['EQ_'+old.id]||0)+1;
+  log('裝備 <b class="q-'+e.q+'">['+e.name+']</b>','l-sys');
+  renderBag(); renderChar();
+}
+function renderQuest(){
+  const q=curQ();
+  let h='<div class="card"><h3>任務日誌</h3>';
+  if(!q){ h+='<div class="row"><span>本區任務已全數完成。感謝參與垂直切片!</span></div></div>'; $('pgQuest').innerHTML=h; return; }
+  h+='<div class="row"><div class="grow"><b class="l-lvl">['+q.id+'] '+q.name+'</b>(Lv'+q.lv+')<small>'+q.brief+'</small>'
+    +'<small>進度:'+(q.type==='talk'?(S.qdone?'可回報':'前往城鎮'):S.qn+' / '+q.n)+'</small></div>'
+    +(S.qdone?'<button class="gold" onclick="reportQ()">回報</button>':'')+'</div>';
+  h+='<div class="row"><small>獎勵:'+Math.round(6*F.mobXp(q.lv)*(q.type==='boss'?2:1))+' 經驗'
+    +(q.rw.equip?' + 綠色裝備':'')+(q.rw.item?' + '+ITEMS[q.rw.item[0]].name+'×'+q.rw.item[1]:'')+'</small></div></div>';
+  h+='<div class="card"><h3>已完成</h3>';
+  for(let i=0;i<S.qi;i++){ const dq=QUESTS[S.zone][i]; h+='<div class="row"><small>✔ ['+dq.id+'] '+dq.name+'</small></div>'; }
+  if(!S.qi) h+='<div class="row"><small>尚無</small></div>';
+  $('pgQuest').innerHTML=h+'</div>';
+}
+function renderTown(){
+  const z=ZONES[S.zone], q=curQ();
+  let mats=0, matGold=0;
+  for(const k in S.bag){ const it=ITEMS[k]; if(it&&it.mat){ mats+=S.bag[k]; matGold+=S.bag[k]*it.sell; } }
+  if(S.race==='norein') matGold=Math.round(matGold*1.1);
+  let rc=0;
+  for(const s of ['w','c']){ const e=S.eq[s],d=EQUIPS[e.id];
+    rc+=F.repairCost(d.lv, d.q==='white'?0.5:d.q==='green'?1:2, d.dmax-e.dur); }
+  let h='<div class="card"><h3>'+z.town+'</h3>';
+  if(q&&q.type==='talk'&&!S.qdone) h+='<div class="row"><div class="grow">鎮上的長者望向你<small>任務['+q.name+']:報到</small></div><button class="gold" onclick="S.qdone=true;S.qn=1;renderTown();renderQuest();renderQuestDot();log(\'你完成了報到,至任務頁回報\',\'l-sys\')">報到</button></div>';
+  h+='</div>';
+  h+='<div class="card"><h3>委託板(NPC 收購)</h3><div class="row"><div class="grow">出售全部材料 ×'+mats+'<small>'+(S.race==='norein'?'諾嵐人商譽+10%.':'')+'可得 '+fmtG(matGold)+'</small></div><button '+(mats?'':'disabled')+' onclick="sellMats()">全部出售</button></div></div>';
+  h+='<div class="card"><h3>鐵匠(修理)</h3><div class="row"><div class="grow">修復全部裝備<small>費用 '+fmtG(rc)+'(死亡只扣耐久的代價)</small></div><button '+(rc>0&&S.gold>=rc?'':'disabled')+' onclick="repairAll()">修理</button></div></div>';
+  h+='<div class="card"><h3>煉金台</h3><div class="row"><div class="grow">初級治療藥水<small>'+ITEMS[z.herb].name+'×2 → 藥水×1(煉金 '+S.alchSkill+')</small></div><button onclick="craftPot()">調製</button></div></div>';
+  h+='<div class="card"><h3>雜貨商(NPC 市場)</h3><div class="row"><div class="grow">初級治療藥水<small>15 銅/瓶(價格天花板)</small></div><button '+(S.gold>=15?'':'disabled')+' onclick="buyPot()">購買</button></div></div>';
+  $('pgTown').innerHTML=h;
+}
+function sellMats(){
+  let g=0;
+  for(const k of Object.keys(S.bag)){ const it=ITEMS[k]; if(it&&it.mat){ g+=S.bag[k]*it.sell; delete S.bag[k]; } }
+  if(S.race==='norein') g=Math.round(g*1.1);
+  S.gold+=g; log('委託板收購完成,獲得 <b class="l-loot">'+fmtG(g)+'</b>','l-loot');
+  renderTown(); renderBag(); renderHUD(); save();
+}
+function repairAll(){
+  let rc=0;
+  for(const s of ['w','c']){ const e=S.eq[s],d=EQUIPS[e.id]; rc+=F.repairCost(d.lv,d.q==='white'?0.5:d.q==='green'?1:2,d.dmax-e.dur); }
+  if(S.gold<rc) return;
+  S.gold-=rc;
+  for(const s of ['w','c']) S.eq[s].dur=EQUIPS[S.eq[s].id].dmax;
+  log('裝備已全數修復(-'+fmtG(rc)+')','l-sys');
+  renderTown(); renderChar(); renderHUD(); save();
+}
+function buyPot(){ if(S.gold<15) return; S.gold-=15; addItem('it_hpot',1); renderTown(); renderHUD(); }
+function renderSys(){
+  $('pgSys').innerHTML=
+    '<div class="card"><h3>存檔</h3><div class="row"><div class="grow">自動存檔<small>每 10 秒寫入本機(localStorage)</small></div><button onclick="save();log(\'已手動存檔\',\'l-sys\')">立即存檔</button></div>'
+    +'<div class="row"><div class="grow">匯出存檔<small>還原卡環境必備:複製後妥善保存</small></div><button onclick="exportSave()">匯出</button></div>'
+    +'<textarea id="saveIO" placeholder="匯出的存檔會出現在這裡;貼上存檔後按匯入"></textarea>'
+    +'<div class="row"><div class="grow"></div><button onclick="importSave()">匯入為新角色</button></div></div>'
+    +'<div class="card"><h3>角色</h3><div class="row"><div class="grow">登出<small>存檔並返回角色選單(最多 '+MAXCHARS+' 個角色欄位)</small></div><button class="gold" onclick="logout()">登出</button></div>'
+    +'<div class="row"><div class="grow">刪除本角色<small>無法復原</small></div><button class="danger" onclick="resetSave()">刪除</button></div></div>'
+    +'<div class="card"><h3>關於</h3><small style="color:var(--ink-dim)">永恆傳承 原型 v0.2<br>八種族 × 九職業(依 GDB 2.3 對照表開放)· 8 角色欄位<br>TTK 手動 12 秒/掛機 15 秒閉環 · 死亡只扣耐久 · 精力軟上限<br>手機/電腦通用單一檔案 · 桌面快捷鍵:1~6 技能,Q 藥水,空白鍵 尋找敵人</small></div>';
+}
+function exportSave(){ save(); $('saveIO').value=btoa(unescape(encodeURIComponent(JSON.stringify(S)))); $('saveIO').select(); log('存檔已匯出至文字框','l-sys'); }
+function importSave(){
+  try{
+    const t=$('saveIO').value.trim(); if(!t) return;
+    const obj=JSON.parse(decodeURIComponent(escape(atob(t))));
+    if(!obj||!obj.name||!CLASSES[obj.cls]||!RACES[obj.race]) throw 0;
+    if(R.list.length>=MAXCHARS){ log('角色欄位已滿('+MAXCHARS+'),請先刪除舊角色','l-warn'); return; }
+    R.list.push(obj); save();
+    log('匯入成功:角色 <b class="l-lvl">'+obj.name+'</b> 已加入名冊,登出後可切換','l-lvl');
+  }catch(e){ log('匯入失敗:存檔格式不正確','l-warn'); }
+}
+function resetSave(){
+  if(!confirm('確定刪除「'+S.name+'」?此動作無法復原')) return;
+  R.list.splice(R.active,1); R.active=-1; S=null;
+  try{ localStorage.setItem(ROSTERKEY, JSON.stringify(R)); }catch(e){}
+  location.reload();
+}
+function logout(){ save(); location.reload(); }
+
+/* ===== 離線掛機結算(GDB 14.2 批次模擬的單機版) ===== */
+function offlineProgress(){
+  const elapsed=Math.min(72*3600, (Date.now()-S.ts)/1000);
+  if(elapsed<60) return null;
+  if(S.mode!=='auto'){
+    S.energy=Math.min(100, S.energy+elapsed*4/3600);
+    S.rest=Math.min(4*3600, (S.rest||0)+elapsed*0.25);
+    return {type:'rest', t:elapsed};
+  }
+  // 掛機:每 16 秒一殺(TTK15+間隔),精力耗盡後收益減半
+  const hunt=ZONES[S.zone].mobs.find(m=>m.id===currentHunt())||ZONES[S.zone].mobs[0];
+  const kills=Math.floor(elapsed/16);
+  let xp=0, gold=0, itemsGot={}, fullSec=S.energy/8*3600;
+  const q=curQ();
+  for(let i=0;i<kills;i++){
+    const mul=(i*16<fullSec?1:0.5);
+    xp+=Math.round(F.mobXp(hunt.lv)*mul);
+    for(const l of hunt.loot){
+      if(l[0]==='coin') gold+=Math.round((l[1]+(l[2]-l[1])/2)*mul);
+      else if(Math.random()*10000<l[1]*mul) itemsGot[l[0]]=(itemsGot[l[0]]||0)+1;
+    }
+    if(q&&!S.qdone&&q.type==='kill'&&q.tgt===hunt.id&&S.qn<q.n) S.qn++;
+  }
+  S.energy=Math.max(0, S.energy-elapsed*8/3600);
+  S.kills+=kills; S.gold+=gold;
+  for(const k in itemsGot){ S.bag[k]=(S.bag[k]||0)+itemsGot[k]; if(k.startsWith('it_shard')) S.shards+=itemsGot[k]; }
+  gainXp(xp); checkQ();
+  return {type:'idle', t:elapsed, kills, xp, gold, itemsGot, mobName:hunt.name};
+}
+function showReport(r){
+  let h='<h1>掛機報告</h1><div class="sub">ETERNAL LEGACY</div>';
+  if(r.type==='rest'){
+    h+='<div class="card"><div class="kv"><span>離線時間</span><span>'+fmtT(r.t)+'</span></div>'
+      +'<div class="kv"><span>精力恢復至</span><span>'+Math.round(S.energy)+'%</span></div>'
+      +'<div class="kv"><span>累積安逸值</span><span>+'+fmtT(r.t*0.25)+'(掛機經驗+25%)</span></div></div>';
+  }else{
+    h+='<div class="card"><div class="kv"><span>掛機時間</span><span>'+fmtT(r.t)+'</span></div>'
+      +'<div class="kv"><span>狩獵目標</span><span>'+r.mobName+'</span></div>'
+      +'<div class="kv"><span>擊殺</span><span>'+r.kills+'</span></div>'
+      +'<div class="kv"><span>經驗</span><span>+'+r.xp+'</span></div>'
+      +'<div class="kv"><span>金錢</span><span>+'+fmtG(r.gold)+'</span></div>';
+    for(const k in r.itemsGot) h+='<div class="kv"><span>'+ITEMS[k].name+'</span><span>×'+r.itemsGot[k]+'</span></div>';
+    h+='</div>';
+    if(S.energy<=0) h+='<div class="card"><small class="l-warn" style="color:var(--warn)">精力已耗盡:期間部分收益以 50% 計.切回手動或休息即可恢復</small></div>';
+  }
+  h+='<button class="gold" style="width:100%" onclick="closeOv()">繼續冒險</button>';
+  $('ovBox').innerHTML=h; $('overlay').classList.remove('hidden');
+}
+function closeOv(){ $('overlay').classList.add('hidden'); }
+
+/* ===== 角色選單 ===== */
+function renderSelect(){
+  let h='<h1>永恆傳承</h1><div class="sub">選擇角色('+R.list.length+' / '+MAXCHARS+')</div>';
+  if(!R.list.length) h+='<div class="card"><small style="color:var(--ink-dim)">名冊空無一人——建立你的第一位傳承者</small></div>';
+  R.list.forEach((c,i)=>{
+    h+='<div class="row"><div class="grow"><b class="l-lvl">'+c.name+'</b>'
+      +'<small>Lv'+c.lv+' '+RACES[c.race].name+' '+CLASSES[c.cls].name+' · '+ZONES[c.zone].name
+      +(c.mode==='auto'?' · 🌙掛機中':'')+'</small></div>'
+      +'<button class="gold" onclick="enterChar('+i+')">進入</button>'
+      +'<button class="danger" onclick="delChar('+i+')">刪除</button></div>';
+  });
+  if(R.list.length<MAXCHARS)
+    h+='<button style="width:100%;margin-top:10px" onclick="pick={race:null,cls:null};renderCreate()">＋ 建立新角色</button>';
+  $('ovBox').innerHTML=h; $('overlay').classList.remove('hidden');
+}
+function enterChar(i){ S=R.list[i]; R.active=i; closeOv(); boot(false); }
+function delChar(i){
+  if(!confirm('確定刪除「'+R.list[i].name+'」?此動作無法復原')) return;
+  R.list.splice(i,1); if(R.active>=i) R.active=-1;
+  try{ localStorage.setItem(ROSTERKEY, JSON.stringify(R)); }catch(e){}
+  renderSelect();
+}
+
+/* ===== 建立角色 ===== */
+let pick={race:null, cls:null};
+function renderCreate(){
+  let h='<h1>永恆傳承</h1><div class="sub">ETERNAL LEGACY · 原型 v0.2</div>';
+  h+='<div class="microlabel">角色名稱</div><input id="cName" maxlength="10" placeholder="輸入名字" style="width:100%;margin:4px 0 10px">';
+  h+='<div class="microlabel">種族</div><div class="pickGrid">';
+  for(const [k,r] of Object.entries(RACES))
+    h+='<div class="pick'+(pick.race===k?' on':'')+'" onclick="pickRace(\''+k+'\')"><b>'+r.name+'</b><small>'+r.fac+'</small><small>'+r.desc+'</small></div>';
+  h+='</div><div class="microlabel">職業(依種族開放——GDB 2.3 對照表)</div><div class="pickGrid">';
+  for(const [k,c] of Object.entries(CLASSES)){
+    const ok=pick.race && RACES[pick.race].classes.includes(k);
+    h+='<div class="pick'+(pick.cls===k?' on':'')+(pick.race&&!ok?' dis':'')+'" onclick="pickCls(\''+k+'\')"><b>'+c.name+'</b><small>'+c.desc+'</small></div>';
+  }
+  h+='</div><button class="gold" style="width:100%;margin-top:6px" onclick="createChar()">踏上旅途</button>';
+  if(R.list.length) h+='<button style="width:100%;margin-top:6px" onclick="renderSelect()">← 返回角色選單</button>';
+  h+='<div style="margin-top:10px;text-align:center"><small style="color:var(--ink-dim)">你的名字將被寫入這個世界的傳承</small></div>';
+  $('ovBox').innerHTML=h;
+}
+function pickRace(k){ pick.race=k; if(pick.cls&&!RACES[k].classes.includes(pick.cls)) pick.cls=null; const n=$('cName').value; renderCreate(); $('cName').value=n; }
+function pickCls(k){ if(pick.race&&!RACES[pick.race].classes.includes(k)) return; pick.cls=k; const n=$('cName').value; renderCreate(); $('cName').value=n; }
+function createChar(){
+  const name=($('cName').value.trim()||'無名旅人');
+  if(!pick.race||!pick.cls){ alert('請選擇種族與職業'); return; }
+  if(R.list.length>=MAXCHARS){ alert('角色欄位已滿'); return; }
+  S=newState(name, pick.race, pick.cls);
+  R.list.push(S); R.active=R.list.length-1;
+  closeOv(); boot(true);
+}
+
+/* ===== 導航與啟動 ===== */
+document.querySelectorAll('#nav button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#nav button').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); $(b.dataset.pg).classList.add('on');
+    if(b.dataset.pg==='pgChar')renderChar();
+    if(b.dataset.pg==='pgBag')renderBag();
+    if(b.dataset.pg==='pgQuest')renderQuest();
+    if(b.dataset.pg==='pgTown')renderTown();
+    if(b.dataset.pg==='pgSys')renderSys();
+  };
+});
+$('btnMode').onclick=()=>setMode(S.mode==='auto'?'manual':'auto');
+$('btnFight').onclick=()=>{ if(!mob) spawn(currentHunt()); };
+$('btnGather').onclick=gather;
+$('btnTown').onclick=()=>{ if(mob){ despawn(); log('你脫離了戰鬥','l-sys'); } document.querySelector('#nav button[data-pg="pgTown"]').click(); };
+$('huntSel').onchange=e=>{ S.hunt=e.target.value; save(); };
+document.addEventListener('keydown',e=>{
+  if(!S||$('overlay')&&!$('overlay').classList.contains('hidden')) return;
+  if(e.key>='1'&&e.key<='6'){ const l=learned(); const i=+e.key-1; if(l[i]&&S.mode!=='auto') useSkill(l[i][0]); }
+  if(e.key==='q'||e.key==='Q') usePotion('it_hpot');
+  if(e.key===' '){ e.preventDefault(); if(!mob) spawn(currentHunt()); }
+});
+window.addEventListener('beforeunload', save);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) save(); });
+
+function boot(isNew){
+  renderHunt(); renderSkills(); renderHUD(); renderEnemy(); renderQuestDot();
+  if(isNew){
+    log('<b>歡迎來到艾爾世界,'+S.name+'。</b>','l-lvl');
+    log('你在'+ZONES[S.zone].name+'醒來.'+ZONES[S.zone].town+'的長者正等著你(城鎮頁)','l-sys');
+    log('提示:選擇狩獵目標後按「尋找敵人」;或切換掛機模式讓 AI 接手','l-sys');
+  }else{
+    const r=offlineProgress();
+    log('歡迎回來,'+S.name+'。','l-sys');
+    if(r) showReport(r); else closeOv();
+    renderHunt();
+  }
+  save();
+}
+
+/* 入口 */
+(function(){
+  R=loadRoster();
+  if(R.list.length) renderSelect();
+  else renderCreate();
+  setInterval(tick, 250);
+  setInterval(save, 10000);
+})();
+</script>
+</body>
+</html>
